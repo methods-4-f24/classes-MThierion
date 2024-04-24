@@ -1,0 +1,228 @@
+---
+title: "Class 8 Exercises"
+output: html_document
+date: "2024-04-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rethinking)
+```
+
+## Exercises
+
+### Easy
+
+Do all the easy exercises from Chapter 9: **9E1** through **9E6**.
+
+### Medium
+
+#### 9M1
+
+
+```{r}
+
+# Your solution here
+
+data(rugged)
+d <- rugged
+d$log_gdp <- log(d$rgdppc_2000)
+dd <- d[ complete.cases(d$rgdppc_2000),]
+
+dd$log_gdp_std <- dd$log_gdp / mean(dd$log_gdp)
+dd$rugged_std <- dd$rugged / max(dd$rugged)
+dd$cid <- ifelse( dd$cont_africa==1 , 1 , 2 )
+
+
+
+dat_slim <- list(
+log_gdp_std = dd$log_gdp_std,
+rugged_std = dd$rugged_std,
+cid = as.integer(dd$cid))
+
+str(dat_slim)
+
+```
+
+
+```{r}
+
+m_exp_sigma <- ulam(alist(
+log_gdp_std ~ dnorm(mu ,sigma),
+mu <- a[cid] + b[cid]*(rugged_std - 0.215),
+a[cid] ~ dnorm(1 ,0.1),
+b[cid] ~ dnorm(0 ,0.3),
+sigma ~ dexp(1)
+), data=dat_slim ,chains=4 ,cores=4)
+
+
+m_uniform_sigma <- ulam(alist(
+log_gdp_std ~ dnorm(mu ,sigma),
+mu <- a[cid] + b[cid]*(rugged_std - 0.215),
+a[cid] ~ dnorm(1 ,0.1),
+b[cid] ~ dnorm(0 ,0.3),
+sigma ~ dunif(0, 10)
+), data=dat_slim ,chains=4 ,cores=4)
+
+
+```
+
+```{r}
+
+precis(m_exp_sigma, depth = 2)
+
+precis(m_uniform_sigma, depth = 2)
+
+```
+
+
+#### 9M2
+
+```{r}
+
+# Your solution herre
+
+
+m_exp_sigma_small <- ulam(alist(
+log_gdp_std ~ dnorm(mu ,sigma),
+mu <- a[cid] + b[cid]*(rugged_std - 0.215),
+a[cid] ~ dnorm(1 ,0.1),
+b[cid] ~ dnorm(0 ,0.3),
+sigma ~ dexp(0.1)
+), data=dat_slim ,chains=8 ,cores=8)
+
+
+m_cauchy_sigma_small <- ulam(alist(
+log_gdp_std ~ dnorm(mu ,sigma),
+mu <- a[cid] + b[cid]*(rugged_std - 0.215),
+a[cid] ~ dnorm(1 ,0.1),
+b[cid] ~ dnorm(0 ,0.3),
+sigma ~ dcauchy(0.1, 1)
+), data=dat_slim ,chains=4 ,cores=4)
+
+
+```
+
+
+```{r}
+
+precis(m_exp_sigma_small, depth = 2)
+
+precis(m_cauchy_sigma_small, depth = 2)
+
+
+```
+
+
+
+### Hard
+
+#### 9H1
+
+```{r}
+
+# Your solution here
+
+set.seed(29)
+
+mp <- ulam(
+alist(
+a ~ dnorm(0,1),
+b ~ dcauchy(0,1)
+),
+data=list(y=1),
+start=list(a=0,b=0),
+iter=1e4, warmup=100)
+
+
+```
+
+
+```{r}
+
+precis(mp)
+
+traceplot(mp)
+
+trankplot(mp, n_cols=2)
+
+```
+
+
+#### 9H2
+
+```{r}
+
+# Your solution herre
+
+data(WaffleDivorce)
+d <- WaffleDivorce
+# standardize variables
+d$A <- scale(d$MedianAgeMarriage)
+d$D <- scale(d$Divorce)
+d$M <- scale(d$Marriage)
+
+
+## First model
+
+marriage_slim <- list(
+median_age_marriage = d$MedianAgeMarriage,
+divorce = d$Divorce)
+
+marriage_slimmest <- list(
+median_age_marriage = d$MedianAgeMarriage,
+divorce = d$Divorce,
+marriage = d$Marriage)
+
+m5_1 <- ulam(alist
+(
+divorce ~ dnorm( mu , sigma ),
+mu <- a + bA * median_age_marriage,
+a ~ dnorm(0 ,0.2),
+bA ~ dnorm(0 ,0.5),
+sigma ~ dexp( 1 )
+), data = marriage_slimmest, chains=4 ,cores=4)
+
+## Second model 
+
+marriage_slimmer <- list(
+divorce = d$Divorce,
+marriage = d$Marriage)
+
+
+m5_2 <- ulam(alist
+(
+divorce ~ dnorm( mu , sigma),
+mu <- a + bM * marriage,
+a ~ dnorm( 0 , 0.2),
+bM ~ dnorm( 0 , 0.5),
+sigma ~ dexp(1)
+), data = marriage_slimmest, chains=4 ,cores=4)
+
+
+## Third model 
+
+
+
+
+m5_3 <- ulam(alist
+(
+divorce ~ dnorm( mu , sigma ) ,
+mu <- a + bM*marriage + bA*median_age_marriage,
+a ~ dnorm( 0 , 0.2 ) ,
+bM ~ dnorm( 0 , 0.5 ) ,
+bA ~ dnorm( 0 , 0.5 ) ,
+sigma ~ dexp( 1 )
+), data = marriage_slimmest, chains=4 ,cores=4)
+
+
+
+```
+```{r}
+
+compare(m5_1 ,m5_2 ,m5_3)
+```
+
